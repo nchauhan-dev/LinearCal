@@ -92,7 +92,7 @@ input.code{font-family:var(--display);letter-spacing:.3em;text-transform:upperca
 <body>
 <div class="wrap" id="app"><h1>Trivia <span class="a">Showdown</span></h1><p class="dim">Loading…</p></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.4/peerjs.min.js" onerror="this.remove();var s=document.createElement('script');s.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';document.head.appendChild(s)"></script>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js" onerror="this.remove();var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js';document.head.appendChild(s)"></script>
 <script>
 /* ================= QUESTION LIBRARY =================
    Format: category|question|correct answer|wrong|wrong|wrong  */
@@ -373,13 +373,27 @@ let AC=null;
 function beep(f=660,d=.08,type="square",v=.05){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(AC.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.stop(AC.currentTime+d+.02)}catch(e){}}
 let wake=null;
 async function keepAwake(){try{if("wakeLock" in navigator&&document.visibilityState==="visible")wake=await navigator.wakeLock.request("screen")}catch(e){}}
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&(H||conn))keepAwake()});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&client)keepAwake()});
 
-const PREFIX="trivia-showdown-v1-";
+/* ================= relay: free public MQTT brokers over secure WebSockets ================= */
+const BROKERS=["wss://broker.hivemq.com:8884/mqtt","wss://broker.emqx.io:8084/mqtt","wss://test.mosquitto.org:8081/mqtt"];
+const ROOT="trivia-showdown-v2/";
 let pid=ls.get("ts-pid","");if(!pid){pid=Math.random().toString(36).slice(2,10);ls.set("ts-pid",pid)}
 let myName=ls.get("ts-name","");
-let peer=null,conn=null,H=null,S=null,code="";
+let client=null,trying=[],H=null,S=null,code="",session=0,loops=[],lastHost=0,lastStateStr="",giveUpT=null,lastResend=0;
 let qSeen={key:"",t:0},myAns=null,ticker=null,lastSound="";
+const every=(f,ms)=>{const t=setInterval(f,ms);loops.push(t);return t};
+
+function needLib(){if(typeof mqtt==="undefined"){home("Couldn't load the connection library. Check your internet and refresh.");return false}return true}
+function connectBroker(url,timeout=7000){
+  return new Promise((res,rej)=>{
+    let c;try{c=mqtt.connect(url,{clientId:"ts_"+pid+"_"+Math.random().toString(36).slice(2,7),clean:true,connectTimeout:timeout,reconnectPeriod:2000,keepalive:20})}catch(e){return rej(e)}
+    const t=setTimeout(()=>{try{c.end(true)}catch(e){}rej(new Error("timeout"))},timeout);
+    c.once("connect",()=>{clearTimeout(t);res(c)});
+    c.on("error",()=>{});
+  });
+}
+function pub(topic,obj,retain=false){try{client&&client.publish(topic,typeof obj==="string"?obj:JSON.stringify(obj),{qos:1,retain})}catch(e){}}
 
 /* ================= home ================= */
 function home(err){
@@ -404,48 +418,48 @@ function home(err){
   cd.oninput=()=>cd.value=cd.value.replace(/[^a-z]/gi,"").toUpperCase();
 }
 function cleanup(){
-  clearInterval(ticker);ticker=null;
+  session++;clearInterval(ticker);ticker=null;loops.forEach(clearInterval);loops=[];clearTimeout(giveUpT);
   if(H&&H.timer)clearTimeout(H.timer);
-  try{conn&&conn.close()}catch(e){}try{peer&&peer.destroy()}catch(e){}
-  peer=null;conn=null;H=null;S=null;code="";myAns=null;
+  const c=client,wasHost=!!H,cd=code;
+  if(c){try{if(wasHost&&cd)c.publish(ROOT+cd+"/state","",{qos:1,retain:true},()=>{try{c.end(true)}catch(e){}});else c.end(true)}catch(e){}}
+  trying.forEach(x=>{try{x.end(true)}catch(e){}});trying=[];
+  client=null;H=null;S=null;code="";myAns=null;lastStateStr="";
   try{wake&&wake.release()}catch(e){}wake=null;
 }
 function waitScreen(title,sub){app.innerHTML=`<div class="waiting"><div class="pulse"></div><h2>${esc(title)}</h2>${sub?`<p class="dim">${esc(sub)}</p>`:""}<button class="btn ghost" id="cancel">Cancel</button></div>`;document.getElementById("cancel").onclick=()=>home()}
-function needPeer(){if(typeof Peer==="undefined"){home("Couldn't load the connection library. Check your internet and refresh.");return false}return true}
 
 /* ================= HOST ================= */
 function newCode(){const L="ABCDEFGHJKMNPQRSTUVWXYZ";return Array.from({length:4},()=>L[Math.floor(Math.random()*L.length)]).join("")}
-function startHost(tries=0){
-  if(!needPeer())return;
-  code=newCode();waitScreen("Setting up your game…");
-  peer=new Peer(PREFIX+code.toLowerCase(),{debug:0});
-  peer.on("open",()=>{
-    H={players:{},phase:"lobby",cats:new Set(JSON.parse(ls.get("ts-cats","null"))||Object.keys(CATS)),rounds:+ls.get("ts-rounds",10),dur:+ls.get("ts-dur",15),
-       qs:[],qi:0,gid:"",timer:null,used:new Set(),res:null};
-    H.players[pid]={name:myName,score:0,on:true,conn:null,ans:null,host:true};
-    keepAwake();broadcast();
-  });
-  peer.on("connection",c=>{
-    c.on("data",d=>hostMsg(c,d));
-    c.on("close",()=>{const p=Object.values(H?H.players:{}).find(p=>p.conn===c);if(p){p.on=false;p.conn=null;broadcast();hostCheckAll()}});
-    c.on("error",()=>{});
-  });
-  peer.on("disconnected",()=>{try{peer.reconnect()}catch(e){}});
-  peer.on("error",e=>{
-    if(e.type==="unavailable-id"&&tries<4){try{peer.destroy()}catch(_){};return startHost(tries+1)}
-    if(!H)home("Couldn't start a game. Check your internet and try again.");
-  });
+async function startHost(){
+  if(!needLib())return;
+  cleanup();const my=session;waitScreen("Setting up your game…");
+  let c=null;for(const url of BROKERS){try{c=await connectBroker(url);break}catch(e){}if(session!==my)return}
+  if(session!==my){try{c&&c.end(true)}catch(e){}return}
+  if(!c)return home("Couldn't reach the game server. Check your internet and try again.");
+  client=c;code=newCode();
+  H={players:{},phase:"lobby",cats:new Set(JSON.parse(ls.get("ts-cats","null"))||Object.keys(CATS)),rounds:+ls.get("ts-rounds",10),dur:+ls.get("ts-dur",15),
+     qs:[],qi:0,gid:"",timer:null,used:new Set(),res:null};
+  H.players[pid]={name:myName,score:0,on:true,ans:null,host:true,seen:Date.now()};
+  const sub=()=>client.subscribe(ROOT+code+"/up",{qos:1});sub();
+  client.on("connect",()=>{if(H){sub();publishState()}});
+  client.on("message",(t,m)=>{if(!H)return;let d;try{d=JSON.parse(m.toString())}catch(e){return}hostMsg(d)});
+  every(()=>{if(!H)return;const now=Date.now();let changed=false;
+    Object.values(H.players).forEach(p=>{if(!p.host&&p.on&&now-p.seen>16000){p.on=false;changed=true}});
+    if(changed){broadcast();hostCheckAll()}else publishState()},4000);
+  keepAwake();broadcast();
 }
-function hostMsg(c,d){
+function hostMsg(d){
   if(!H||!d||typeof d!=="object")return;
-  const id=String(d.pid||"").slice(0,16);if(!id)return;
+  const id=String(d.pid||"").slice(0,16);if(!id||id===pid)return;
+  const p=H.players[id];
   if(d.t==="join"){
     const name=String(d.name||"Player").trim().slice(0,14)||"Player";
     const live=Object.values(H.players).filter(p=>p.on).length;
-    if(!H.players[id]&&live>=12){c.send({t:"full"});return}
-    const p=H.players[id]||(H.players[id]={score:0,ans:null});
-    p.name=name;p.conn=c;p.on=true;broadcast();
-  }else if(d.t==="ans"){hostAnswer(id,d)}
+    if(!p&&live>=12){pub(ROOT+code+"/to/"+id,{t:"full"});return}
+    const q=p||(H.players[id]={score:0,ans:null});q.name=name;q.on=true;q.seen=Date.now();broadcast();
+  }else if(!p)return;
+  else if(d.t==="ping"){p.seen=Date.now();if(!p.on){p.on=true;broadcast()}}
+  else if(d.t==="ans"){p.seen=Date.now();p.on=true;hostAnswer(id,d)}
 }
 function hostAnswer(id,d){
   const p=H.players[id];if(!p||H.phase!=="q"||d.gid!==H.gid||d.qi!==H.qi||p.ans)return;
@@ -470,7 +484,7 @@ function hostQuestion(qi){
   clearTimeout(H.timer);H.phase="q";H.qi=qi;H.res=null;
   Object.values(H.players).forEach(p=>p.ans=null);
   broadcast();
-  H.timer=setTimeout(hostReveal,(H.dur+1)*1000);
+  H.timer=setTimeout(hostReveal,(H.dur+2)*1000);
 }
 function hostReveal(){
   if(!H||H.phase!=="q")return;clearTimeout(H.timer);
@@ -489,37 +503,59 @@ function hostState(){
   if(H.phase==="reveal")Object.assign(s,{correct:H.qs[H.qi].correct,res:H.res});
   return s;
 }
-function broadcast(){
-  if(!H)return;const s=hostState();
-  Object.values(H.players).forEach(p=>{if(p.conn&&p.conn.open){try{p.conn.send({t:"state",s})}catch(e){}}});
-  S=s;render();
-}
+function publishState(){if(H&&S)pub(ROOT+code+"/state",{ts:Date.now(),s:S},true)}
+function broadcast(){if(!H)return;S=hostState();publishState();render()}
 
 /* ================= PLAYER ================= */
 function startJoin(c,isRetry){
-  if(!needPeer())return;
-  cleanup();code=c;waitScreen(isRetry?"Reconnecting…":`Joining game ${c}…`);
-  let done=false;const giveUp=setTimeout(()=>{if(!done)home(`Couldn't reach game ${c}. Check the code, and make sure the host's screen is on.`)},12000);
-  peer=new Peer({debug:0});
-  peer.on("open",()=>{
-    conn=peer.connect(PREFIX+c.toLowerCase(),{reliable:true});
-    conn.on("open",()=>{done=true;clearTimeout(giveUp);conn.send({t:"join",pid,name:myName});keepAwake();try{history.replaceState(null,"","#"+c)}catch(e){}});
-    conn.on("data",d=>{if(!d)return;if(d.t==="state"){S=d.s;render()}else if(d.t==="full"){home("That game is full (12 players).")}});
-    conn.on("close",()=>{if(conn&&S)lostHost()});
-    conn.on("error",()=>{});
-  });
-  peer.on("error",e=>{if(e.type==="peer-unavailable"){done=true;clearTimeout(giveUp);home(`No game found with code ${c}. Check the code with your host.`)}});
+  if(!needLib())return;
+  cleanup();const my=session;code=c;waitScreen(isRetry?"Reconnecting…":`Joining game ${c}…`);
+  giveUpT=setTimeout(()=>{if(session===my&&!client)home(`No game found with code ${c}. Check the code, and make sure the host still has the game open.`)},12000);
+  // try every server at once; the one carrying this game wins
+  BROKERS.forEach(url=>connectBroker(url,9000).then(cl=>{
+    if(session!==my||client){try{cl.end(true)}catch(e){}return}
+    trying.push(cl);
+    cl.on("message",(t,m)=>onRelay(cl,t,m,my));
+    cl.subscribe([ROOT+c+"/state",ROOT+c+"/to/"+pid],{qos:1});
+  }).catch(()=>{}));
+}
+function onRelay(cl,t,m,my){
+  if(session!==my)return;
+  const str=m.toString();
+  if(t.endsWith("/to/"+pid)){try{if(JSON.parse(str).t==="full")home("That game is full (12 players).")}catch(e){}return}
+  if(!str){if(cl===client)home("The host ended the game.");return}
+  let d;try{d=JSON.parse(str)}catch(e){return}
+  if(!d||!d.s)return;
+  if(!client){
+    if(Math.abs(Date.now()-(+d.ts||0))>45000)return; // leftover from an old game
+    client=cl;clearTimeout(giveUpT);
+    trying.filter(x=>x!==cl).forEach(x=>{try{x.end(true)}catch(e){}});trying=[];
+    keepAwake();try{history.replaceState(null,"","#"+code)}catch(e){}
+    pub(ROOT+code+"/up",{t:"join",pid,name:myName});
+    every(()=>pub(ROOT+code+"/up",{t:"ping",pid}),5000);
+    every(()=>{if(client&&Date.now()-lastHost>15000)lostHost()},2000);
+    client.on("connect",()=>{try{client.subscribe([ROOT+code+"/state",ROOT+code+"/to/"+pid],{qos:1})}catch(e){}});
+  }
+  if(cl!==client)return;
+  lastHost=Date.now();
+  S=d.s;
+  const meP=S.players.find(p=>p.id===pid);
+  if(!meP||!meP.on)pub(ROOT+code+"/up",{t:"join",pid,name:myName});
+  // re-send an answer the host hasn't recorded yet
+  if(S.phase==="q"&&myAns&&myAns.key===S.gid+":"+S.qi&&meP&&!meP.answered&&Date.now()-lastResend>1500){lastResend=Date.now();pub(ROOT+code+"/up",{t:"ans",pid,gid:S.gid,qi:S.qi,k:myAns.k,ms:myAns.ms})}
+  const sStr=JSON.stringify(S);if(sStr===lastStateStr)return;lastStateStr=sStr;
+  render();
 }
 function lostHost(){
-  clearInterval(ticker);const c=code;
+  const c=code;cleanup();
   app.innerHTML=`<div class="waiting"><h2>Lost connection to the host</h2><p class="dim">Their phone may have locked or left the page.</p>
   <button class="btn" id="re">Reconnect</button><button class="btn ghost" id="hm">Leave</button></div>`;
   document.getElementById("re").onclick=()=>startJoin(c,true);document.getElementById("hm").onclick=()=>home();
 }
 function sendAnswer(k){
   if(!S||S.phase!=="q")return;const key=S.gid+":"+S.qi;if(myAns&&myAns.key===key)return;
-  myAns={key,k};const ms=Math.round(performance.now()-qSeen.t);beep(660,.05);
-  if(H)hostAnswer(pid,{gid:S.gid,qi:S.qi,k,ms});else{try{conn.send({t:"ans",pid,gid:S.gid,qi:S.qi,k,ms})}catch(e){}render()}
+  const ms=Math.round(performance.now()-qSeen.t);myAns={key,k,ms};beep(660,.05);
+  if(H)hostAnswer(pid,{gid:S.gid,qi:S.qi,k,ms});else{pub(ROOT+code+"/up",{t:"ans",pid,gid:S.gid,qi:S.qi,k,ms});render()}
 }
 
 /* ================= RENDER ================= */
