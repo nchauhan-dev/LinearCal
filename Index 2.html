@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1c1230">
+<title>Trivia Showdown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Nunito+Sans:wght@500;700;900&display=swap">
+<style>
+:root{
+  --floor:#1c1230; --floor-2:#2a1c47; --card:#33245a; --well:#140c24; --ink:#f6f0ff; --dim:#b3a6d6;
+  --a1:#ff5d73; --a2:#ffc94a; --a3:#3ddc97; --a4:#4cc3ff; --good:#3ddc97; --bad:#ff5d73;
+  --display:"Bungee","Arial Black",Impact,sans-serif;
+  --body:"Nunito Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0}
+body{background:var(--floor);color:var(--ink);font-family:var(--body);font-size:16px;-webkit-tap-highlight-color:transparent;
+  background-image:radial-gradient(ellipse at 50% -10%,var(--floor-2),transparent 65%);background-attachment:fixed;
+  padding:max(18px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(36px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(2rem,9vw,3rem);line-height:.95;margin:0;text-wrap:balance}
+h1 .a{color:var(--a2)}
+h2{font-family:var(--display);font-weight:400;font-size:1.4rem;margin:0;line-height:1.15;text-wrap:balance}
+p{margin:0;line-height:1.5}
+.dim{color:var(--dim)}
+.lbl{font-weight:900;font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+button{font:inherit;cursor:pointer}
+.btn{font-family:var(--display);font-size:1.1rem;padding:14px 20px;border:none;border-radius:12px;background:var(--a2);color:#2a1a00;box-shadow:0 5px 0 #b8861d;transition:transform .08s}
+.btn:active{transform:translateY(3px);box-shadow:0 2px 0 #b8861d}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--ink);box-shadow:inset 0 0 0 2px var(--card);font-family:var(--body);font-weight:900;font-size:1rem}
+.btn.wide{width:100%}
+button:focus-visible,input:focus-visible{outline:3px solid var(--a4);outline-offset:3px}
+input[type=text]{font:inherit;font-size:1.15rem;padding:13px 14px;border-radius:10px;border:2px solid var(--card);background:var(--well);color:var(--ink);width:100%}
+input:focus{outline:none;border-color:var(--a4)}
+input.code{font-family:var(--display);letter-spacing:.3em;text-transform:uppercase;text-align:center;font-size:1.6rem;min-width:0}
+.panel{background:var(--card);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.or{display:flex;align-items:center;gap:10px;color:var(--dim);font-weight:900;font-size:.8rem}
+.or::before,.or::after{content:"";flex:1;height:2px;background:var(--well)}
+.bigcode{font-family:var(--display);font-size:clamp(3rem,16vw,4.5rem);letter-spacing:.15em;text-align:center;color:var(--a2);line-height:1}
+.players{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--well);border-radius:99px;padding:8px 14px;font-weight:900;display:flex;gap:6px;align-items:center}
+.chip .tag{font-size:.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+.chip.done{box-shadow:inset 0 0 0 2px var(--good)}
+.chip.off{opacity:.45}
+.cats{display:flex;flex-wrap:wrap;gap:8px}
+.cats button{border:2px solid var(--well);background:var(--well);color:var(--dim);border-radius:99px;padding:8px 13px;font-weight:900;font-size:.9rem}
+.cats button[aria-pressed=true]{border-color:var(--a2);color:var(--ink);background:#2a1d3f}
+.cats button small{opacity:.6;font-weight:700;margin-left:4px}
+.seg{display:inline-flex;background:var(--well);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:none;background:transparent;color:var(--dim);font-family:var(--display);font-size:1rem;padding:8px 13px;border-radius:9px}
+.seg button[aria-pressed=true]{background:var(--card);color:var(--ink)}
+.qhead{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.timer{font-family:var(--display);font-size:1.6rem;font-variant-numeric:tabular-nums;min-width:2ch;text-align:right}
+.timer.low{color:var(--bad)}
+.bar{height:8px;border-radius:4px;background:var(--well);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--a2);transition:width .25s linear}
+.catpill{display:inline-block;font-weight:900;font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--a2)}
+.q{font-weight:900;font-size:clamp(1.3rem,5.5vw,1.7rem);line-height:1.3;text-wrap:balance}
+.tiles{display:grid;grid-template-columns:1fr;gap:10px}
+.tile{border:none;border-radius:14px;padding:18px 16px;min-height:64px;text-align:left;font-weight:900;font-size:1.15rem;color:#1c1230;display:flex;gap:12px;align-items:center;touch-action:manipulation;transition:transform .06s,opacity .2s}
+.tile:active{transform:scale(.98)}
+.tile .k{font-family:var(--display);font-size:1rem;opacity:.7}
+.tile:nth-child(1){background:var(--a1)}.tile:nth-child(2){background:var(--a2)}.tile:nth-child(3){background:var(--a3)}.tile:nth-child(4){background:var(--a4)}
+.tile:disabled{cursor:default}
+.tile.dim{opacity:.3}
+.tile.mine{outline:4px solid var(--ink);outline-offset:3px}
+.tile.right{opacity:1;box-shadow:0 0 0 4px var(--floor),0 0 0 8px var(--good)}
+.tile .who{margin-left:auto;font-size:.8rem;font-weight:900;background:rgba(28,18,48,.85);color:var(--ink);padding:4px 8px;border-radius:99px;text-align:right}
+.result{font-family:var(--display);font-size:1.8rem;text-align:center}
+.result.good{color:var(--good)}.result.bad{color:var(--bad)}
+.board{display:flex;flex-direction:column;gap:8px}
+.li{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--well);border-radius:10px;padding:12px 14px;font-weight:900}
+.li .v{font-family:var(--display);font-variant-numeric:tabular-nums}
+.li .g{color:var(--good);font-size:.85rem;margin-left:6px}
+.li.first{box-shadow:inset 0 0 0 2px var(--a2)}
+.li.me{background:#24183e}
+.waiting{text-align:center;padding-block:30px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.pulse{width:14px;height:14px;border-radius:50%;background:var(--a2);animation:p 1s ease-in-out infinite}
+@keyframes p{50%{opacity:.25;transform:scale(.7)}}
+.note{font-size:.85rem;color:var(--dim);line-height:1.5}
+.err{color:var(--bad);font-weight:900}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><h1>Trivia <span class="a">Showdown</span></h1><p class="dim">Loading…</p></div>
+
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js" onerror="this.remove();var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js';document.head.appendChild(s)"></script>
+<script>
+/* ================= QUESTION LIBRARY =================
+   Format: category|question|correct answer|wrong|wrong|wrong  */
+const CATS={gen:"General",sci:"Science",geo:"Geography",his:"History",spo:"Sports",food:"Food & Drink",ani:"Animals",tv:"Movies & TV",mus:"Music",can:"Canada",tec:"Tech",hal:"Halloween"};
+const RAW=`
+gen|How many days are in a leap year?|366|365|364|367
+gen|How many minutes are in a day?|1,440|1,240|1,600|1,080
+gen|Blue and yellow paint mix to make which colour?|Green|Purple|Orange|Brown
+gen|How many sides does a hexagon have?|6|5|7|8
+gen|How many hours are in a week?|168|148|120|172
+gen|What's the smallest prime number?|2|1|3|0
+gen|How many zeros are in one million?|6|5|7|9
+gen|What is the Roman numeral for 50?|L|C|D|X
+gen|Which month has the fewest days?|February|April|June|November
+gen|How many cards are in a standard deck, without jokers?|52|48|54|56
+gen|What direction is opposite north-east?|South-west|North-west|South-east|West
+gen|How many dots are on a standard die in total?|21|18|20|24
+gen|What is the freezing point of water in Fahrenheit?|32°F|0°F|10°F|40°F
+gen|How many sides does a stop sign have?|8|6|7|10
+gen|Which weighs more: a kilogram of feathers or a kilogram of bricks?|They weigh the same|The bricks|The feathers|Depends on the size
+gen|In a rainbow, which colour sits between green and indigo?|Blue|Yellow|Violet|Orange
+gen|How many years are in a century?|100|1,000|50|10
+gen|What is the Roman numeral for 10?|X|V|L|I
+gen|How many seconds are in an hour?|3,600|360|6,000|1,200
+gen|What is 15% of 200?|30|15|20|45
+gen|How many weeks are in a year?|52|48|50|56
+gen|Which number is a perfect square?|49|42|56|60
+sci|What's the chemical symbol for gold?|Au|Ag|Gd|Go
+sci|Which planet has the most known moons?|Saturn|Jupiter|Uranus|Neptune
+sci|Which gas do plants take in from the air?|Carbon dioxide|Oxygen|Nitrogen|Helium
+sci|What's the hardest natural substance?|Diamond|Quartz|Granite|Titanium
+sci|Which planet is closest to the Sun?|Mercury|Venus|Mars|Earth
+sci|What is the largest planet in our solar system?|Jupiter|Saturn|Neptune|Earth
+sci|Which planet is called the Red Planet?|Mars|Venus|Jupiter|Mercury
+sci|Which metal is liquid at room temperature?|Mercury|Lead|Tin|Aluminum
+sci|What is H2O better known as?|Water|Hydrogen peroxide|Salt|Ozone
+sci|What's frozen carbon dioxide called?|Dry ice|Frost|Hail|Cold fire
+sci|Who came up with the theory of relativity?|Albert Einstein|Isaac Newton|Nikola Tesla|Galileo
+sci|Where is most of a cell's DNA kept?|Nucleus|Ribosome|Cell membrane|Vacuole
+sci|Roughly how fast does light travel?|300,000 km/s|30,000 km/s|3,000 km/s|3 million km/s
+sci|How many bones are in an adult human body?|206|186|226|256
+sci|What's the largest organ of the human body?|Skin|Liver|Brain|Lungs
+sci|Which blood type is the universal donor?|O negative|AB positive|A negative|B positive
+sci|Which element has the symbol Na?|Sodium|Nitrogen|Neon|Nickel
+sci|What's the most common gas in Earth's atmosphere?|Nitrogen|Oxygen|Carbon dioxide|Argon
+sci|Which is the smallest planet in our solar system?|Mercury|Mars|Venus|Neptune
+sci|What force keeps us on the ground?|Gravity|Magnetism|Friction|Inertia
+sci|At sea level, water boils at what temperature?|100°C|90°C|110°C|120°C
+sci|Which planet's day is longer than its year?|Venus|Mercury|Mars|Neptune
+sci|How many elements are on the periodic table?|118|108|112|126
+sci|What does a thermometer measure?|Temperature|Pressure|Humidity|Wind speed
+sci|What do bees collect from flowers to make honey?|Nectar|Pollen|Sap|Dew
+geo|What's the capital of Australia?|Canberra|Sydney|Melbourne|Perth
+geo|What is the largest ocean on Earth?|Pacific|Atlantic|Indian|Arctic
+geo|What's the capital of Japan?|Tokyo|Kyoto|Osaka|Seoul
+geo|Which is the longest river in South America?|Amazon|Paraná|Orinoco|Magdalena
+geo|What's the largest country by area?|Russia|Canada|China|USA
+geo|What is the capital of Italy?|Rome|Milan|Venice|Naples
+geo|What's the capital of Spain?|Madrid|Barcelona|Seville|Valencia
+geo|Marrakesh is a city in which country?|Morocco|Egypt|Tunisia|Algeria
+geo|In which country are the pyramids of Giza?|Egypt|Mexico|Peru|Sudan
+geo|Which ocean lies between Africa and Australia?|Indian|Pacific|Atlantic|Southern
+geo|What's the largest hot desert?|Sahara|Gobi|Kalahari|Mojave
+geo|How many continents are there?|7|5|6|8
+geo|What's the tallest mountain above sea level?|Mount Everest|K2|Kilimanjaro|Denali
+geo|What's the capital of Germany?|Berlin|Munich|Frankfurt|Hamburg
+geo|Which country has the most people?|India|China|USA|Indonesia
+geo|What's the capital of Brazil?|Brasília|Rio de Janeiro|São Paulo|Salvador
+geo|Which river flows through London?|Thames|Seine|Danube|Rhine
+geo|What's the capital of Egypt?|Cairo|Alexandria|Giza|Luxor
+geo|Which country is shaped like a boot?|Italy|Greece|Portugal|Chile
+geo|What's the smallest country in the world?|Vatican City|Monaco|San Marino|Liechtenstein
+geo|Which US state is the largest by area?|Alaska|Texas|California|Montana
+geo|What's the capital of South Korea?|Seoul|Busan|Incheon|Pyongyang
+geo|Mount Kilimanjaro is in which country?|Tanzania|Kenya|Uganda|Ethiopia
+geo|What's the capital of Mexico?|Mexico City|Guadalajara|Cancún|Monterrey
+geo|What's the capital of France?|Paris|Lyon|Marseille|Nice
+his|In which year did humans first land on the Moon?|1969|1965|1972|1959
+his|In what year did World War II end?|1945|1944|1946|1939
+his|In what year did the Titanic sink?|1912|1905|1915|1922
+his|Who was the first president of the United States?|George Washington|Abraham Lincoln|Thomas Jefferson|John Adams
+his|Which country gifted the Statue of Liberty to the USA?|France|England|Spain|Italy
+his|In what year did the Berlin Wall fall?|1989|1985|1991|1979
+his|Which empire built the Colosseum?|Roman|Greek|Ottoman|Persian
+his|Who painted the ceiling of the Sistine Chapel?|Michelangelo|Leonardo da Vinci|Raphael|Donatello
+his|Who was the first person in space?|Yuri Gagarin|Neil Armstrong|Buzz Aldrin|John Glenn
+his|In what year did World War I begin?|1914|1912|1916|1918
+his|Who was the first woman to win a Nobel Prize?|Marie Curie|Rosalind Franklin|Jane Addams|Mother Teresa
+his|What writing system did ancient Egyptians use?|Hieroglyphics|Cuneiform|Runes|Sanskrit
+his|Who is usually credited with inventing the telephone?|Alexander Graham Bell|Thomas Edison|Nikola Tesla|Samuel Morse
+his|Which ship carried the Pilgrims to America in 1620?|Mayflower|Santa Maria|Endeavour|Beagle
+his|Who was the British prime minister for most of WWII?|Winston Churchill|Neville Chamberlain|Clement Attlee|Margaret Thatcher
+his|In which city was President John F. Kennedy assassinated?|Dallas|Houston|Washington, D.C.|Chicago
+his|Who co-wrote The Communist Manifesto with Friedrich Engels?|Karl Marx|Vladimir Lenin|Joseph Stalin|Leon Trotsky
+his|Which civilization built Machu Picchu?|Inca|Maya|Aztec|Olmec
+his|Napoleon was emperor of which country?|France|Italy|Spain|Austria
+his|Who was the first person to walk on the Moon?|Neil Armstrong|Buzz Aldrin|Yuri Gagarin|Michael Collins
+his|Who painted the Mona Lisa?|Leonardo da Vinci|Michelangelo|Raphael|Van Gogh
+his|Which ancient wonder stood in Egypt and still survives?|Great Pyramid of Giza|Hanging Gardens|Colossus of Rhodes|Lighthouse of Alexandria
+spo|How many players per soccer team are on the field?|11|9|10|12
+spo|Which sport uses a shuttlecock?|Badminton|Tennis|Squash|Volleyball
+spo|In hockey, how many players per team are on the ice, goalie included?|6|5|7|11
+spo|How often are the Summer Olympics held?|Every 4 years|Every 2 years|Every 3 years|Every 5 years
+spo|Which country won the first FIFA World Cup in 1930?|Uruguay|Brazil|Argentina|Italy
+spo|How many points is a touchdown worth in American football?|6|3|7|4
+spo|How many holes are in a standard round of golf?|18|9|12|24
+spo|Wimbledon is a tournament in which sport?|Tennis|Golf|Cricket|Rugby
+spo|How many rings are on the Olympic flag?|5|4|6|7
+spo|In basketball, how many points is a shot from beyond the arc?|3|2|4|1
+spo|Michael Jordan played most of his career for which team?|Chicago Bulls|LA Lakers|Boston Celtics|New York Knicks
+spo|What trophy does the NHL champion win?|Stanley Cup|Grey Cup|Lombardi Trophy|Davis Cup
+spo|How long is a marathon?|About 42 km|About 26 km|About 50 km|About 36 km
+spo|In which sport would you see a slam dunk?|Basketball|Volleyball|Handball|Water polo
+spo|How many players does a baseball team have on the field on defence?|9|8|10|11
+spo|Sumo wrestling is most associated with which country?|Japan|China|Korea|Mongolia
+spo|Which colour belt is highest in most karate styles?|Black|Red|Brown|White
+spo|Usain Bolt is famous for which event?|100 m sprint|Marathon|Long jump|400 m hurdles
+spo|The Tour de France is a race in which sport?|Cycling|Running|Sailing|Motor racing
+spo|What trophy does the CFL champion win?|Grey Cup|Stanley Cup|Ryder Cup|America's Cup
+spo|Which sport is played with a puck?|Hockey|Lacrosse|Polo|Cricket
+spo|In tennis, what is a score of zero called?|Love|Nil|Duck|Zip
+food|Which country invented poutine?|Canada|France|Belgium|USA
+food|What's the main ingredient in guacamole?|Avocado|Tomato|Lime|Pea
+food|Sushi comes from which country?|Japan|China|Korea|Thailand
+food|What's the main ingredient in hummus?|Chickpeas|Lentils|Black beans|Peas
+food|What is tofu made from?|Soybeans|Rice|Wheat|Peanuts
+food|Which nut is used to make marzipan?|Almond|Cashew|Walnut|Hazelnut
+food|Which spice gives curry its yellow colour?|Turmeric|Paprika|Cinnamon|Cumin
+food|The colours of a Margherita pizza match which country's flag?|Italy|Mexico|Ireland|Hungary
+food|Which fruit wears its seeds on the outside?|Strawberry|Raspberry|Kiwi|Fig
+food|Maple syrup is made from what?|Tree sap|Flower nectar|Corn|Sugar beets
+food|Which drink is made from fermented grapes?|Wine|Beer|Cider|Sake
+food|Paella comes from which country?|Spain|Italy|Mexico|Portugal
+food|What's the main herb in traditional pesto?|Basil|Spinach|Parsley|Mint
+food|Kimchi comes from which country?|Korea|Japan|China|Vietnam
+food|Sauerkraut is made from which vegetable?|Cabbage|Cucumber|Lettuce|Onion
+food|Brie is a type of what?|Cheese|Bread|Wine|Sausage
+food|What makes bread dough rise?|Yeast|Salt|Sugar|Butter
+food|Raisins are dried what?|Grapes|Plums|Figs|Dates
+food|Prunes are dried what?|Plums|Grapes|Apricots|Cherries
+food|What's the most expensive spice by weight?|Saffron|Vanilla|Cardamom|Black pepper
+food|Pad thai comes from which country?|Thailand|Vietnam|Laos|Malaysia
+food|What is the main ingredient in a traditional omelette?|Eggs|Flour|Milk|Potatoes
+ani|What is the largest mammal?|Blue whale|African elephant|Giraffe|Sperm whale
+ani|What's the tallest animal?|Giraffe|Elephant|Ostrich|Moose
+ani|How many hearts does an octopus have?|3|1|2|8
+ani|How many legs does a spider have?|8|6|10|12
+ani|What's the fastest land animal?|Cheetah|Lion|Pronghorn|Greyhound
+ani|What is a baby kangaroo called?|Joey|Kit|Cub|Calf
+ani|Which bird can't fly?|Penguin|Pelican|Albatross|Puffin
+ani|What is a group of lions called?|Pride|Pack|Herd|Flock
+ani|What do giant pandas mostly eat?|Bamboo|Eucalyptus|Fish|Berries
+ani|Which mammal can truly fly?|Bat|Flying squirrel|Sugar glider|Colugo
+ani|What's the largest bird in the world?|Ostrich|Emu|Albatross|Condor
+ani|How many legs does an insect have?|6|8|4|10
+ani|Which animal is on the Canadian nickel?|Beaver|Moose|Loon|Caribou
+ani|Which animal is called the king of the jungle?|Lion|Tiger|Gorilla|Elephant
+ani|What is a baby frog called?|Tadpole|Kit|Fry|Pup
+ani|What is a group of crows called?|A murder|A gaggle|A parliament|A school
+ani|What is the largest species of shark?|Whale shark|Great white|Hammerhead|Tiger shark
+ani|How many humps does a dromedary camel have?|1|2|3|0
+ani|Koalas mainly eat what?|Eucalyptus leaves|Bamboo|Grass|Insects
+ani|Which bird is on the Canadian one-dollar coin?|Loon|Goose|Eagle|Owl
+ani|Which animal has black-and-white stripes and lives in Africa?|Zebra|Panda|Skunk|Badger
+ani|What is a group of owls called?|A parliament|A murder|A pod|A pride
+tv|In which movie does Tom Hanks tell his life story on a bus-stop bench?|Forrest Gump|Cast Away|Big|The Terminal
+tv|Which animated film follows a lion cub named Simba?|The Lion King|The Jungle Book|Madagascar|Tarzan
+tv|What's the name of the wizarding school in Harry Potter?|Hogwarts|Durmstrang|Beauxbatons|Ilvermorny
+tv|Who directed Jaws and E.T.?|Steven Spielberg|George Lucas|James Cameron|Ridley Scott
+tv|Which show is set in the town of Hawkins, Indiana?|Stranger Things|Riverdale|Twin Peaks|Wednesday
+tv|What's the coffee shop called in Friends?|Central Perk|Monk's Café|The Grind|Java Joe's
+tv|Which movie is about a toy cowboy named Woody?|Toy Story|Cars|Shrek|Up
+tv|In the 1939 film, what colour are Dorothy's slippers?|Ruby red|Silver|Gold|Blue
+tv|Bruce Wayne is the secret identity of which hero?|Batman|Superman|Iron Man|Spider-Man
+tv|Who played Iron Man in the Marvel films?|Robert Downey Jr.|Chris Evans|Chris Hemsworth|Mark Ruffalo
+tv|In Finding Nemo, what kind of fish is Nemo?|Clownfish|Blue tang|Goldfish|Pufferfish
+tv|Who directed Titanic (1997)?|James Cameron|Steven Spielberg|Ron Howard|Michael Bay
+tv|In which series do families fight for the Iron Throne?|Game of Thrones|The Witcher|Vikings|The Last Kingdom
+tv|Which TV family lives at 742 Evergreen Terrace?|The Simpsons|The Griffins|The Belchers|The Flintstones
+tv|What's the name of the snowman in Frozen?|Olaf|Sven|Kristoff|Hans
+tv|Which movie features a DeLorean time machine?|Back to the Future|The Terminator|Looper|Bill & Ted
+tv|In Star Wars, who is Luke Skywalker's father?|Darth Vader|Obi-Wan Kenobi|Emperor Palpatine|Han Solo
+tv|Which show follows a chemistry teacher who starts making drugs?|Breaking Bad|Ozark|Narcos|Weeds
+tv|The Office (US) is set at a paper company in which city?|Scranton|Stamford|Albany|Pittsburgh
+tv|What colour pill does Neo take in The Matrix?|Red|Blue|Green|White
+tv|Which Pixar film is set inside a girl's mind?|Inside Out|Coco|Soul|Up
+mus|Which instrument usually has 88 keys?|Piano|Accordion|Harp|Xylophone
+mus|How many strings does a standard guitar have?|6|4|5|8
+mus|How many strings does a violin have?|4|5|6|3
+mus|John Lennon was a member of which band?|The Beatles|The Rolling Stones|The Who|Queen
+mus|Who is known as the King of Pop?|Michael Jackson|Elvis Presley|Prince|Justin Timberlake
+mus|Who is known as the King of Rock and Roll?|Elvis Presley|Chuck Berry|Little Richard|Buddy Holly
+mus|Freddie Mercury was the lead singer of which band?|Queen|Led Zeppelin|The Doors|Aerosmith
+mus|Which composer kept writing music after going deaf?|Beethoven|Mozart|Bach|Chopin
+mus|Drake is from which city?|Toronto|Montreal|Vancouver|Detroit
+mus|Which singer's fans are called Swifties?|Taylor Swift|Selena Gomez|Ariana Grande|Billie Eilish
+mus|How many musicians are in a quartet?|4|3|5|6
+mus|The trumpet belongs to which instrument family?|Brass|Woodwind|Strings|Percussion
+mus|The clarinet belongs to which instrument family?|Woodwind|Brass|Strings|Percussion
+mus|The Weeknd is from which country?|Canada|USA|UK|Australia
+mus|RM, Jin and Suga are members of which group?|BTS|EXO|Blackpink|Seventeen
+mus|Beyoncé first found fame in which group?|Destiny's Child|TLC|Spice Girls|The Supremes
+mus|Bob Marley is famous for which genre?|Reggae|Jazz|Blues|Salsa
+mus|What does forte mean in music?|Loud|Soft|Fast|Slow
+mus|How many lines are on a musical staff?|5|4|6|7
+mus|Justin Bieber was born in which country?|Canada|USA|UK|Australia
+mus|Who composed The Four Seasons?|Vivaldi|Bach|Handel|Haydn
+mus|Celine Dion is from which province?|Quebec|Ontario|New Brunswick|Manitoba
+can|What's the capital of Canada?|Ottawa|Toronto|Montreal|Vancouver
+can|How many provinces does Canada have?|10|9|12|13
+can|How many provinces and territories does Canada have in total?|13|12|10|14
+can|In what year did Canada become a country?|1867|1876|1812|1901
+can|The CN Tower is in which city?|Toronto|Vancouver|Calgary|Montreal
+can|Which is Canada's largest province by area?|Quebec|Ontario|British Columbia|Alberta
+can|Which is Canada's smallest province?|Prince Edward Island|Nova Scotia|New Brunswick|Newfoundland and Labrador
+can|What is Canada's national winter sport?|Hockey|Curling|Skiing|Lacrosse
+can|Which city hosted the 2010 Winter Olympics?|Vancouver|Calgary|Montreal|Edmonton
+can|The Canadian side of Niagara Falls is in which province?|Ontario|Quebec|Manitoba|British Columbia
+can|Who was Canada's first prime minister?|John A. Macdonald|Wilfrid Laurier|Pierre Trudeau|Alexander Mackenzie
+can|Which ocean borders British Columbia?|Pacific|Atlantic|Arctic|Indian
+can|What are Canada's two official languages?|English and French|English and Inuktitut|French and Cree|English and Spanish
+can|Which city hosts the Calgary Stampede?|Calgary|Edmonton|Regina|Winnipeg
+can|Iqaluit is the capital of which territory?|Nunavut|Yukon|Northwest Territories|Labrador
+can|What's the capital of British Columbia?|Victoria|Vancouver|Kelowna|Surrey
+can|What's the capital of Alberta?|Edmonton|Calgary|Red Deer|Banff
+can|Which Canadian invented basketball?|James Naismith|Frederick Banting|Alexander Graham Bell|Wayne Gretzky
+can|Which Canadian co-discovered insulin?|Frederick Banting|James Naismith|Terry Fox|Norman Bethune
+can|Which hockey player is known as The Great One?|Wayne Gretzky|Mario Lemieux|Gordie Howe|Sidney Crosby
+can|Terry Fox's Marathon of Hope raised money for what?|Cancer research|Heart disease|Children's hospitals|Clean water
+can|On what date is Canada Day?|July 1|July 4|June 24|May 24
+can|What's Canada's largest city?|Toronto|Montreal|Vancouver|Calgary
+can|What's the capital of Nova Scotia?|Halifax|Sydney|Truro|Moncton
+tec|In what year did the first iPhone come out?|2007|2005|2008|2010
+tec|Which company makes the PlayStation?|Sony|Nintendo|Microsoft|Sega
+tec|What does www stand for?|World Wide Web|World Web Wide|Wide World Web|Web World Wide
+tec|Who co-founded Microsoft with Paul Allen?|Bill Gates|Steve Jobs|Steve Wozniak|Larry Page
+tec|What does CPU stand for?|Central Processing Unit|Computer Power Unit|Central Program Utility|Core Processing Unit
+tec|Which company owns Android?|Google|Apple|Samsung|Microsoft
+tec|How many bits are in a byte?|8|4|16|10
+tec|Which company created Mario?|Nintendo|Sega|Sony|Atari
+tec|What does USB stand for?|Universal Serial Bus|United System Bus|Universal Signal Board|Unified Serial Block
+tec|Which company makes Galaxy phones?|Samsung|LG|Huawei|Sony
+tec|In what year was YouTube founded?|2005|2003|2007|2009
+tec|Who founded Amazon?|Jeff Bezos|Elon Musk|Mark Zuckerberg|Larry Ellison
+tec|At which university was Facebook started?|Harvard|Stanford|MIT|Yale
+tec|Which programming language is named after a comedy group?|Python|Ruby|Java|Perl
+tec|What does HTML stand for?|HyperText Markup Language|High Tech Modern Language|HyperTool Multi Language|Home Text Markup Language
+tec|Which company makes Windows?|Microsoft|Apple|IBM|Intel
+tec|Which company bought Minecraft in 2014?|Microsoft|Google|Sony|Amazon
+tec|What is Apple's voice assistant called?|Siri|Alexa|Cortana|Bixby
+tec|What does GPS stand for?|Global Positioning System|General Position Service|Global Path Signal|Geo Pointing System
+tec|Which app is known for photos that disappear?|Snapchat|Instagram|TikTok|WhatsApp
+tec|What does AI stand for?|Artificial intelligence|Automated internet|Advanced interface|Algorithmic input
+tec|What does Wi-Fi let devices do?|Connect wirelessly|Charge faster|Store more files|Cool down
+hal|Halloween grew out of Samhain, a festival from which country?|Ireland|USA|Mexico|Germany
+hal|In Ireland, jack-o'-lanterns were first carved from what?|Turnips|Pumpkins|Apples|Potatoes
+hal|Who wrote Frankenstein?|Mary Shelley|Bram Stoker|Edgar Allan Poe|H.G. Wells
+hal|Who wrote Dracula?|Bram Stoker|Mary Shelley|Stephen King|Oscar Wilde
+hal|Count Dracula's castle is in which region?|Transylvania|Bavaria|Siberia|Normandy
+hal|When is Mexico's Day of the Dead mainly celebrated?|November 1–2|October 31|November 5|December 1
+hal|Who directed the 1978 movie Halloween?|John Carpenter|Wes Craven|Tobe Hooper|Sam Raimi
+hal|What is the fear of spiders called?|Arachnophobia|Agoraphobia|Claustrophobia|Acrophobia
+hal|What is a group of witches called?|A coven|A cauldron|A circle|A brood
+hal|In Harry Potter, what creatures guard Azkaban?|Dementors|Trolls|Goblins|Thestrals
+hal|Which Halloween candy is shaped like a corn kernel?|Candy corn|Jelly beans|Gumdrops|Licorice
+hal|In Ghostbusters (1984), which city do they protect?|New York|Chicago|Boston|Los Angeles
+hal|Who sang Thriller?|Michael Jackson|Prince|Madonna|Stevie Wonder
+hal|What colour is a classic witch's hat?|Black|Purple|Green|Orange
+`;
+const BANK=RAW.trim().split("\n").map(l=>{const [c,q,...o]=l.split("|");return{c,q,o}}).filter(x=>CATS[x.c]&&x.o.length===4);
+
+/* ================= helpers ================= */
+const app=document.getElementById("app");
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const ls={get(k,d){try{return localStorage.getItem(k)??d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+let AC=null;
+function beep(f=660,d=.08,type="square",v=.05){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();const o=AC.createOscillator(),g=AC.createGain();o.type=type;o.frequency.value=f;g.gain.value=v;o.connect(g);g.connect(AC.destination);o.start();g.gain.exponentialRampToValueAtTime(.0001,AC.currentTime+d);o.stop(AC.currentTime+d+.02)}catch(e){}}
+let wake=null;
+async function keepAwake(){try{if("wakeLock" in navigator&&document.visibilityState==="visible")wake=await navigator.wakeLock.request("screen")}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&client)keepAwake()});
+
+/* ================= relay: free public MQTT brokers over secure WebSockets ================= */
+const BROKERS=["wss://broker.hivemq.com:8884/mqtt","wss://broker.emqx.io:8084/mqtt","wss://test.mosquitto.org:8081/mqtt"];
+const ROOT="trivia-showdown-v2/";
+let pid=ls.get("ts-pid","");if(!pid){pid=Math.random().toString(36).slice(2,10);ls.set("ts-pid",pid)}
+let myName=ls.get("ts-name","");
+let client=null,trying=[],H=null,S=null,code="",session=0,loops=[],lastHost=0,lastStateStr="",giveUpT=null,lastResend=0;
+let qSeen={key:"",t:0},myAns=null,ticker=null,lastSound="";
+const every=(f,ms)=>{const t=setInterval(f,ms);loops.push(t);return t};
+
+function needLib(){if(typeof mqtt==="undefined"){home("Couldn't load the connection library. Check your internet and refresh.");return false}return true}
+function connectBroker(url,timeout=7000){
+  return new Promise((res,rej)=>{
+    let c;try{c=mqtt.connect(url,{clientId:"ts_"+pid+"_"+Math.random().toString(36).slice(2,7),clean:true,connectTimeout:timeout,reconnectPeriod:2000,keepalive:20})}catch(e){return rej(e)}
+    const t=setTimeout(()=>{try{c.end(true)}catch(e){}rej(new Error("timeout"))},timeout);
+    c.once("connect",()=>{clearTimeout(t);res(c)});
+    c.on("error",()=>{});
+  });
+}
+function pub(topic,obj,retain=false){try{client&&client.publish(topic,typeof obj==="string"?obj:JSON.stringify(obj),{qos:1,retain})}catch(e){}}
+
+/* ================= home ================= */
+function home(err){
+  cleanup();
+  const joinCode=(location.hash.match(/^#([A-Za-z]{4})$/)||[])[1]||"";
+  app.innerHTML=`
+  <header style="display:flex;flex-direction:column;gap:8px"><h1>Trivia <span class="a">Showdown</span></h1>
+  <p class="dim">Everyone plays on their own phone. Same question, same moment. Right answer +1, fastest right answer +1 more.</p></header>
+  <div class="panel">
+    <div class="field"><span class="lbl">Your name</span><input type="text" id="nm" maxlength="14" placeholder="e.g. Nehal" value="${esc(myName)}" autocomplete="nickname"></div>
+    <div class="row" style="flex-wrap:nowrap"><input type="text" id="cd" class="code" maxlength="4" placeholder="CODE" autocomplete="off" aria-label="Game code" value="${esc(joinCode.toUpperCase())}"><button class="btn" id="join">Join</button></div>
+    <div class="or">or</div>
+    <button class="btn ghost wide" id="host">Host a new game</button>
+    ${err?`<p class="err">${esc(err)}</p>`:""}
+  </div>
+  <p class="note">${BANK.length} questions across ${Object.keys(CATS).length} categories. No account or app needed. Up to 12 players.</p>`;
+  const nm=document.getElementById("nm"),cd=document.getElementById("cd");
+  const getName=()=>{const v=nm.value.trim();if(!v){nm.focus();nm.style.borderColor="var(--bad)";return null}myName=v;ls.set("ts-name",v);return v};
+  document.getElementById("host").onclick=()=>{if(getName()){beep(880,.05);startHost()}};
+  const doJoin=()=>{if(!getName())return;const c=cd.value.trim().toUpperCase();if(!/^[A-Z]{4}$/.test(c)){cd.focus();cd.style.borderColor="var(--bad)";return}beep(880,.05);startJoin(c)};
+  document.getElementById("join").onclick=doJoin;cd.onkeydown=e=>{if(e.key==="Enter")doJoin()};
+  cd.oninput=()=>cd.value=cd.value.replace(/[^a-z]/gi,"").toUpperCase();
+}
+function cleanup(){
+  session++;clearInterval(ticker);ticker=null;loops.forEach(clearInterval);loops=[];clearTimeout(giveUpT);
+  if(H&&H.timer)clearTimeout(H.timer);
+  const c=client,wasHost=!!H,cd=code;
+  if(c){try{if(wasHost&&cd)c.publish(ROOT+cd+"/state","",{qos:1,retain:true},()=>{try{c.end(true)}catch(e){}});else c.end(true)}catch(e){}}
+  trying.forEach(x=>{try{x.end(true)}catch(e){}});trying=[];
+  client=null;H=null;S=null;code="";myAns=null;lastStateStr="";
+  try{wake&&wake.release()}catch(e){}wake=null;
+}
+function waitScreen(title,sub){app.innerHTML=`<div class="waiting"><div class="pulse"></div><h2>${esc(title)}</h2>${sub?`<p class="dim">${esc(sub)}</p>`:""}<button class="btn ghost" id="cancel">Cancel</button></div>`;document.getElementById("cancel").onclick=()=>home()}
+
+/* ================= HOST ================= */
+function newCode(){const L="ABCDEFGHJKMNPQRSTUVWXYZ";return Array.from({length:4},()=>L[Math.floor(Math.random()*L.length)]).join("")}
+async function startHost(){
+  if(!needLib())return;
+  cleanup();const my=session;waitScreen("Setting up your game…");
+  let c=null;for(const url of BROKERS){try{c=await connectBroker(url);break}catch(e){}if(session!==my)return}
+  if(session!==my){try{c&&c.end(true)}catch(e){}return}
+  if(!c)return home("Couldn't reach the game server. Check your internet and try again.");
+  client=c;code=newCode();
+  H={players:{},phase:"lobby",cats:new Set(JSON.parse(ls.get("ts-cats","null"))||Object.keys(CATS)),rounds:+ls.get("ts-rounds",10),dur:+ls.get("ts-dur",15),
+     qs:[],qi:0,gid:"",timer:null,used:new Set(),res:null};
+  H.players[pid]={name:myName,score:0,on:true,ans:null,host:true,seen:Date.now()};
+  const sub=()=>client.subscribe(ROOT+code+"/up",{qos:1});sub();
+  client.on("connect",()=>{if(H){sub();publishState()}});
+  client.on("message",(t,m)=>{if(!H)return;let d;try{d=JSON.parse(m.toString())}catch(e){return}hostMsg(d)});
+  every(()=>{if(!H)return;const now=Date.now();let changed=false;
+    Object.values(H.players).forEach(p=>{if(!p.host&&p.on&&now-p.seen>16000){p.on=false;changed=true}});
+    if(changed){broadcast();hostCheckAll()}else publishState()},4000);
+  keepAwake();broadcast();
+}
+function hostMsg(d){
+  if(!H||!d||typeof d!=="object")return;
+  const id=String(d.pid||"").slice(0,16);if(!id||id===pid)return;
+  const p=H.players[id];
+  if(d.t==="join"){
+    const name=String(d.name||"Player").trim().slice(0,14)||"Player";
+    const live=Object.values(H.players).filter(p=>p.on).length;
+    if(!p&&live>=12){pub(ROOT+code+"/to/"+id,{t:"full"});return}
+    const q=p||(H.players[id]={score:0,ans:null});q.name=name;q.on=true;q.seen=Date.now();broadcast();
+  }else if(!p)return;
+  else if(d.t==="ping"){p.seen=Date.now();if(!p.on){p.on=true;broadcast()}}
+  else if(d.t==="ans"){p.seen=Date.now();p.on=true;hostAnswer(id,d)}
+}
+function hostAnswer(id,d){
+  const p=H.players[id];if(!p||H.phase!=="q"||d.gid!==H.gid||d.qi!==H.qi||p.ans)return;
+  const k=+d.k;if(!(k>=0&&k<4))return;
+  p.ans={k,ms:Math.max(0,Math.min(+d.ms||0,H.dur*1000+3000))};
+  broadcast();hostCheckAll();
+}
+function hostCheckAll(){
+  if(!H||H.phase!=="q")return;
+  const live=Object.values(H.players).filter(p=>p.on);
+  if(live.length&&live.every(p=>p.ans)){clearTimeout(H.timer);H.timer=setTimeout(hostReveal,500)}
+}
+function hostStart(){
+  let pool=BANK.filter(x=>H.cats.has(x.c));
+  let fresh=pool.filter(x=>!H.used.has(x.q));
+  if(fresh.length<H.rounds){pool.forEach(x=>H.used.delete(x.q));fresh=pool}
+  H.qs=shuffle(fresh).slice(0,H.rounds).map(x=>{H.used.add(x.q);const opts=shuffle(x.o);return{c:x.c,q:x.q,opts,correct:opts.indexOf(x.o[0])}});
+  Object.values(H.players).forEach(p=>{p.score=0;p.ans=null});
+  H.gid=Math.random().toString(36).slice(2,8);hostQuestion(0);
+}
+function hostQuestion(qi){
+  clearTimeout(H.timer);H.phase="q";H.qi=qi;H.res=null;
+  Object.values(H.players).forEach(p=>p.ans=null);
+  broadcast();
+  H.timer=setTimeout(hostReveal,(H.dur+2)*1000);
+}
+function hostReveal(){
+  if(!H||H.phase!=="q")return;clearTimeout(H.timer);
+  const Q=H.qs[H.qi],res={};
+  const right=Object.entries(H.players).filter(([,p])=>p.ans&&p.ans.k===Q.correct);
+  const fastest=right.length?right.reduce((a,b)=>a[1].ans.ms<=b[1].ans.ms?a:b)[0]:null;
+  Object.entries(H.players).forEach(([id,p])=>{if(!p.ans)return;const gain=p.ans.k===Q.correct?(id===fastest?2:1):0;p.score+=gain;res[id]={k:p.ans.k,gain,ms:Math.round(p.ans.ms)}});
+  H.res=res;H.phase="reveal";broadcast();
+}
+function hostNext(){if(H.qi+1>=H.qs.length){H.phase="end";broadcast()}else hostQuestion(H.qi+1)}
+function hostLobby(){clearTimeout(H.timer);H.phase="lobby";Object.values(H.players).forEach(p=>{p.ans=null});broadcast()}
+function hostState(){
+  const players=Object.entries(H.players).map(([id,p])=>({id,name:p.name,score:p.score,on:p.on,host:!!p.host,answered:!!p.ans}));
+  const s={phase:H.phase,code,players,cats:[...H.cats],rounds:H.rounds,dur:H.dur};
+  if(H.phase==="q"||H.phase==="reveal"){const Q=H.qs[H.qi];Object.assign(s,{gid:H.gid,qi:H.qi,total:H.qs.length,c:Q.c,q:Q.q,opts:Q.opts})}
+  if(H.phase==="reveal")Object.assign(s,{correct:H.qs[H.qi].correct,res:H.res});
+  return s;
+}
+function publishState(){if(H&&S)pub(ROOT+code+"/state",{ts:Date.now(),s:S},true)}
+function broadcast(){if(!H)return;S=hostState();publishState();render()}
+
+/* ================= PLAYER ================= */
+function startJoin(c,isRetry){
+  if(!needLib())return;
+  cleanup();const my=session;code=c;waitScreen(isRetry?"Reconnecting…":`Joining game ${c}…`);
+  giveUpT=setTimeout(()=>{if(session===my&&!client)home(`No game found with code ${c}. Check the code, and make sure the host still has the game open.`)},12000);
+  // try every server at once; the one carrying this game wins
+  BROKERS.forEach(url=>connectBroker(url,9000).then(cl=>{
+    if(session!==my||client){try{cl.end(true)}catch(e){}return}
+    trying.push(cl);
+    cl.on("message",(t,m)=>onRelay(cl,t,m,my));
+    cl.subscribe([ROOT+c+"/state",ROOT+c+"/to/"+pid],{qos:1});
+  }).catch(()=>{}));
+}
+function onRelay(cl,t,m,my){
+  if(session!==my)return;
+  const str=m.toString();
+  if(t.endsWith("/to/"+pid)){try{if(JSON.parse(str).t==="full")home("That game is full (12 players).")}catch(e){}return}
+  if(!str){if(cl===client)home("The host ended the game.");return}
+  let d;try{d=JSON.parse(str)}catch(e){return}
+  if(!d||!d.s)return;
+  if(!client){
+    if(Math.abs(Date.now()-(+d.ts||0))>45000)return; // leftover from an old game
+    client=cl;clearTimeout(giveUpT);
+    trying.filter(x=>x!==cl).forEach(x=>{try{x.end(true)}catch(e){}});trying=[];
+    keepAwake();try{history.replaceState(null,"","#"+code)}catch(e){}
+    pub(ROOT+code+"/up",{t:"join",pid,name:myName});
+    every(()=>pub(ROOT+code+"/up",{t:"ping",pid}),5000);
+    every(()=>{if(client&&Date.now()-lastHost>15000)lostHost()},2000);
+    client.on("connect",()=>{try{client.subscribe([ROOT+code+"/state",ROOT+code+"/to/"+pid],{qos:1})}catch(e){}});
+  }
+  if(cl!==client)return;
+  lastHost=Date.now();
+  S=d.s;
+  const meP=S.players.find(p=>p.id===pid);
+  if(!meP||!meP.on)pub(ROOT+code+"/up",{t:"join",pid,name:myName});
+  // re-send an answer the host hasn't recorded yet
+  if(S.phase==="q"&&myAns&&myAns.key===S.gid+":"+S.qi&&meP&&!meP.answered&&Date.now()-lastResend>1500){lastResend=Date.now();pub(ROOT+code+"/up",{t:"ans",pid,gid:S.gid,qi:S.qi,k:myAns.k,ms:myAns.ms})}
+  const sStr=JSON.stringify(S);if(sStr===lastStateStr)return;lastStateStr=sStr;
+  render();
+}
+function lostHost(){
+  const c=code;cleanup();
+  app.innerHTML=`<div class="waiting"><h2>Lost connection to the host</h2><p class="dim">Their phone may have locked or left the page.</p>
+  <button class="btn" id="re">Reconnect</button><button class="btn ghost" id="hm">Leave</button></div>`;
+  document.getElementById("re").onclick=()=>startJoin(c,true);document.getElementById("hm").onclick=()=>home();
+}
+function sendAnswer(k){
+  if(!S||S.phase!=="q")return;const key=S.gid+":"+S.qi;if(myAns&&myAns.key===key)return;
+  const ms=Math.round(performance.now()-qSeen.t);myAns={key,k,ms};beep(660,.05);
+  if(H)hostAnswer(pid,{gid:S.gid,qi:S.qi,k,ms});else{pub(ROOT+code+"/up",{t:"ans",pid,gid:S.gid,qi:S.qi,k,ms});render()}
+}
+
+/* ================= RENDER ================= */
+const isHost=()=>!!H;
+function render(){
+  clearInterval(ticker);ticker=null;if(!S)return;
+  ({lobby:rLobby,q:rQuestion,reveal:rReveal,end:rEnd})[S.phase]?.();
+}
+function board(withGain){
+  const ps=S.players.slice().sort((a,b)=>b.score-a.score);const top=ps.length?ps[0].score:0;
+  return `<div class="board">${ps.map(p=>{const g=withGain&&S.res&&S.res[p.id]?S.res[p.id].gain:0;
+    return `<div class="li ${p.score===top&&top>0?"first":""} ${p.id===pid?"me":""}" ${p.on?"":'style="opacity:.5"'}><span>${esc(p.name)}${p.id===pid?' <span class="dim" style="font-size:.8rem">(you)</span>':""}${g?`<span class="g">+${g}</span>`:""}</span><span class="v">${p.score}</span></div>`}).join("")}</div>`;
+}
+function leaveBtn(){const b=document.getElementById("leave");if(b)b.onclick=()=>home()}
+function rLobby(){
+  qSeen={key:"",t:0};myAns=null;
+  const counts={};BANK.forEach(x=>counts[x.c]=(counts[x.c]||0)+1);
+  const live=S.players.filter(p=>p.on);
+  const link=location.origin&&location.origin!=="null"?location.href.split("#")[0]+"#"+S.code:"";
+  app.innerHTML=`
+  <div class="row between"><h1 style="font-size:1.8rem">Trivia <span class="a">Showdown</span></h1><button class="btn ghost" id="leave">${isHost()?"End":"Leave"}</button></div>
+  <div class="panel" style="text-align:center"><span class="lbl">Game code</span><div class="bigcode">${esc(S.code)}</div>
+    <p class="dim">${isHost()?"Friends open this page, type the code and tap Join.":"You're in. Waiting for the host to start."}</p>
+    ${isHost()&&link?`<button class="btn ghost" id="copy">Copy invite link</button>`:""}</div>
+  <div class="panel"><span class="lbl">Players · ${live.length}</span>
+    <div class="players">${S.players.map(p=>`<span class="chip ${p.on?"":"off"}">${esc(p.name)}${p.host?' <span class="tag">host</span>':""}${p.id===pid?' <span class="tag">you</span>':""}</span>`).join("")}</div></div>
+  ${isHost()?`
+  <div class="panel">
+    <div class="row between"><span class="lbl">Categories</span><button class="btn ghost" id="all" style="padding:6px 12px;font-size:.85rem">${H.cats.size===Object.keys(CATS).length?"Clear":"All"}</button></div>
+    <div class="cats">${Object.entries(CATS).map(([k,v])=>`<button data-c="${k}" aria-pressed="${H.cats.has(k)}">${esc(v)}<small>${counts[k]||0}</small></button>`).join("")}</div>
+    <div class="row between"><span class="lbl">Questions</span><div class="seg">${[5,10,15,20].map(n=>`<button data-n="${n}" aria-pressed="${n===H.rounds}">${n}</button>`).join("")}</div></div>
+    <div class="row between"><span class="lbl">Seconds each</span><div class="seg">${[10,15,20].map(n=>`<button data-d="${n}" aria-pressed="${n===H.dur}">${n}</button>`).join("")}</div></div>
+    <button class="btn wide" id="start" ${H.cats.size?"":"disabled"}>${H.cats.size?"Start game":"Pick a category"}</button>
+  </div>`:`<div class="panel"><span class="lbl">Up next</span><p>${S.rounds} questions · ${S.dur} seconds each</p><p class="dim">${S.cats.map(c=>esc(CATS[c]||c)).join(" · ")}</p></div>`}`;
+  leaveBtn();
+  if(isHost()){
+    const save=()=>{ls.set("ts-cats",JSON.stringify([...H.cats]));ls.set("ts-rounds",H.rounds);ls.set("ts-dur",H.dur);broadcast()};
+    app.querySelectorAll(".cats button").forEach(b=>b.onclick=()=>{const c=b.dataset.c;H.cats.has(c)?H.cats.delete(c):H.cats.add(c);save()});
+    document.getElementById("all").onclick=()=>{H.cats=H.cats.size===Object.keys(CATS).length?new Set():new Set(Object.keys(CATS));save()};
+    app.querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{H.rounds=+b.dataset.n;save()});
+    app.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{H.dur=+b.dataset.d;save()});
+    document.getElementById("start").onclick=()=>{beep(990,.1,"triangle");hostStart()};
+    const cp=document.getElementById("copy");if(cp)cp.onclick=async()=>{try{await navigator.clipboard.writeText(link);cp.textContent="Copied!"}catch(e){cp.textContent=link}};
+  }
+}
+function rQuestion(){
+  const key=S.gid+":"+S.qi;
+  if(qSeen.key!==key){qSeen={key,t:performance.now()};beep(880,.06)}
+  const mine=myAns&&myAns.key===key?myAns:null;
+  const live=S.players.filter(p=>p.on),done=live.filter(p=>p.answered);
+  app.innerHTML=`
+  <div class="qhead"><span class="lbl">Question ${S.qi+1} of ${S.total}</span><span class="timer" id="tl"></span></div>
+  <div class="bar"><i id="tb" style="width:100%"></i></div>
+  <span class="catpill">${esc(CATS[S.c]||"")}</span>
+  <div class="q">${esc(S.q)}</div>
+  <div class="tiles">${S.opts.map((o,k)=>`<button class="tile ${mine?(mine.k===k?"mine":"dim"):""}" data-k="${k}" ${mine?"disabled":""}><span class="k">${"ABCD"[k]}</span>${esc(o)}</button>`).join("")}</div>
+  <div class="players">${live.map(p=>`<span class="chip ${p.answered?"done":""}">${esc(p.name)}${p.answered?" ✓":""}</span>`).join("")}</div>
+  <p class="dim" style="text-align:center">${mine?`Locked in. ${done.length} of ${live.length} answered.`:"Tap your answer. Nobody sees picks until the reveal."}</p>
+  ${isHost()?`<button class="btn ghost" id="skip" style="align-self:center">Reveal now</button>`:""}`;
+  app.querySelectorAll(".tile").forEach(b=>b.addEventListener("pointerdown",e=>{e.preventDefault();sendAnswer(+b.dataset.k)}));
+  if(isHost())document.getElementById("skip").onclick=hostReveal;
+  const tick=()=>{const left=Math.max(0,S.dur-(performance.now()-qSeen.t)/1000);const el=document.getElementById("tl"),bar=document.getElementById("tb");
+    if(el){el.textContent=Math.ceil(left);el.classList.toggle("low",left<=5)}if(bar)bar.style.width=(left/S.dur*100)+"%"};
+  tick();ticker=setInterval(tick,250);
+}
+function rReveal(){
+  const r=S.res&&S.res[pid];let msg,cls;
+  if(!r){msg="Too slow";cls="bad"}else if(r.gain===2){msg="Fastest! +2";cls="good"}else if(r.gain===1){msg="Right! +1";cls="good"}else{msg="Wrong";cls="bad"}
+  const key="r"+S.gid+":"+S.qi;if(lastSound!==key){lastSound=key;beep(cls==="good"?1100:200,.15,cls==="good"?"triangle":"sawtooth")}
+  const names=Object.fromEntries(S.players.map(p=>[p.id,p.name]));
+  const pickers=k=>Object.entries(S.res||{}).filter(([,v])=>v.k===k).map(([id])=>names[id]||"?");
+  app.innerHTML=`
+  <div class="qhead"><span class="lbl">Question ${S.qi+1} of ${S.total}</span><span class="catpill">${esc(CATS[S.c]||"")}</span></div>
+  <div class="q">${esc(S.q)}</div>
+  <div class="result ${cls}">${msg}${r&&r.gain?` <span class="dim" style="font-size:1rem">${(r.ms/1000).toFixed(1)}s</span>`:""}</div>
+  <div class="tiles">${S.opts.map((o,k)=>{const w=pickers(k);return `<button class="tile ${k===S.correct?"right":"dim"} ${r&&r.k===k?"mine":""}" disabled><span class="k">${"ABCD"[k]}</span>${esc(o)}${w.length?`<span class="who">${esc(w.join(", "))}</span>`:""}</button>`}).join("")}</div>
+  <span class="lbl">Scores</span>${board(true)}
+  ${isHost()?`<button class="btn wide" id="nx">${S.qi+1>=S.total?"Final results":"Next question"}</button>`:`<p class="dim" style="text-align:center">Waiting for the host…</p>`}`;
+  if(isHost())document.getElementById("nx").onclick=hostNext;
+}
+function rEnd(){
+  const ps=S.players.slice().sort((a,b)=>b.score-a.score);const top=ps.length?ps[0].score:0;
+  const w=ps.filter(p=>p.score===top&&top>0).map(p=>p.name);
+  const key="e"+S.gid;if(lastSound!==key){lastSound=key;beep(1200,.3,"triangle")}
+  app.innerHTML=`
+  <div class="panel" style="text-align:center"><span class="lbl">Game over</span>
+    <h1 style="font-size:clamp(1.8rem,8vw,2.6rem)">${w.length?`${esc(w.join(" & "))} win${w.length>1?"":"s"}!`:"Nobody scored"}</h1>
+    <p class="dim">${top} point${top===1?"":"s"}</p></div>
+  ${board(false)}
+  ${isHost()?`<div class="row"><button class="btn" id="again" style="flex:1">Play again</button><button class="btn ghost" id="leave">End</button></div>`
+    :`<p class="dim" style="text-align:center">The host can start another round.</p><button class="btn ghost" id="leave">Leave</button>`}`;
+  leaveBtn();if(isHost())document.getElementById("again").onclick=hostLobby;
+}
+
+home();
+</script>
+</body>
+</html>
